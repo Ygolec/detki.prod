@@ -19,7 +19,7 @@ services:
 
   directus:
     image: directus/directus:11
-    container_name: directus
+    container_name: directuss
     ports:
       - "8055:8055"
     environment:
