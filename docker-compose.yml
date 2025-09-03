@@ -1,5 +1,8 @@
 version: "3.9"
 
+networks:
+  app_net:
+
 services:
   postgres:
     image: postgres:17
@@ -20,7 +23,11 @@ services:
 
   directus:
     image: directus/directus:11
-    container_name: directuss
+#    container_name: directuss
+    networks:
+      app_net:
+        aliases:
+          - directus
     ports:
       - "8055:8055"
     environment:
