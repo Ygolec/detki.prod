@@ -1,8 +1,5 @@
 version: "3.9"
 
-networks:
-  app_net:
-
 services:
   postgres:
     image: postgres:17
@@ -11,23 +8,21 @@ services:
       POSTGRES_DB: directus
       POSTGRES_USER: directus
       POSTGRES_PASSWORD: directus
-#      PGDATA: /var/lib/postgresql/data/pgdata
-#    volumes:
-#      - ./pgdata:/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U directus"]
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 30s
     restart: unless-stopped
+    networks:
+      - app_net
 
   directus:
     image: directus/directus:11
-#    container_name: directuss
-    networks:
-      app_net:
-        aliases:
-          - directus
+    container_name: directus
     ports:
       - "8055:8055"
     environment:
@@ -45,18 +40,21 @@ services:
       - CORS_ENABLED=${DIRECTUS_CORS_ENABLED:-true}
       - CORS_ORIGIN=${DIRECTUS_CORS_ORIGIN:-http://localhost:3000,http://nuxt:3000}
       - PUBLIC_URL=${DIRECTUS_PUBLIC_URL:-http://localhost:8055}
-#    volumes:
-#      - ./uploads:/directus/uploads
+    volumes:
+      - directus_uploads:/directus/uploads
+      - directus_extensions:/directus/extensions
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:8055/server/health', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 10s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - app_net
 
   nuxt:
     build: .
@@ -64,6 +62,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - NODE_ENV=production
       - DIRECTUS_INTERNAL_URL=${DIRECTUS_INTERNAL_URL:-http://directus:8055}
       - DIRECTUS_PUBLIC_URL=${DIRECTUS_PUBLIC_URL:-http://localhost:8055}
       - DIRECTUS_STATIC_TOKEN=${DIRECTUS_STATIC_TOKEN:-}
@@ -74,3 +73,14 @@ services:
       directus:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - app_net
+
+volumes:
+  postgres_data:
+  directus_uploads:
+  directus_extensions:
+
+networks:
+  app_net:
+    driver: bridge
