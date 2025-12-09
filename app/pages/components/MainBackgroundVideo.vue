@@ -1,6 +1,3 @@
-<script setup lang="ts">
-
-</script>
 
 <template>
   <video
@@ -11,9 +8,19 @@
       muted
       loop
   >
-    <source src="/video/bg.webm" type="video/webm">
+    <source :src="src" type="video/webm">
   </video>
 </template>
+<script setup lang="ts">
+import {useRuntimeConfig} from "#imports";
+const origin = process.client ? window.location.origin : useRequestURL().origin
+const url = `${origin}/api/mainVideo/video`
+const data: any = await $fetch(url)
+const item = data?.data || data
+const config = useRuntimeConfig();
+const srcFromVideo = item?.video ? `${config.public.directusUrl}/assets/${item.video}` : undefined
+const src = srcFromVideo
+</script>
 
 <style scoped>
 .bg-video {

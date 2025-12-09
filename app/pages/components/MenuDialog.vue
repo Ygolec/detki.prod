@@ -5,6 +5,9 @@
       fullscreen
   >
     <v-card variant="text" class="menu-card d-flex align-center justify-center">
+      <v-btn class="dialog-close" :ripple="false" variant="plain" @click="emit('update:modelValue', false)">
+        <img src="/icons/close.svg"/>
+      </v-btn>
       <img src="/labels/detkiBlack.svg" alt="logo" class="dialog-logo" />
 
       <v-btn variant="plain" class="buttons-url" :ripple="false" @click="onAllProjects">
@@ -42,9 +45,14 @@ function onAllProjects() {
 </script>
 
 <style scoped>
+.dialog-close {
+  position: absolute;
+  top:36px;
+  right:36px;
+}
+
 .menu-card {
-  background-color: #EEEEEE;
-  opacity: 0.5;
+  background-color: rgba(238, 238, 238, 0.5);
 }
 .buttons-url{
   margin-bottom: 20vh;

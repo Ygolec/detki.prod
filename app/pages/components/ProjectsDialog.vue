@@ -5,8 +5,13 @@
       fullscreen
   >
     <v-card variant="text" class="menu-card d-flex align-center justify-center">
-      <!-- Close (X) button in top-right -->
-      <v-btn class="dialog-close" icon="mdi-close" variant="text" @click="emit('update:modelValue', false)"/>
+      <v-btn class="dialog-close" :ripple="false" variant="plain" @click="emit('update:modelValue', false)">
+        <img src="/icons/close.svg"/>
+      </v-btn>
+
+      <v-btn class="back-btn"  variant="plain" :ripple="false" @click="emit('back')">
+        <img src="/icons/back.svg"/>
+      </v-btn>
 
       <img src="/labels/detkiBlack.svg" alt="logo" class="dialog-logo"/>
       <img src="/labels/allProjects.svg" alt="logo" class="center-image"/>
@@ -16,7 +21,7 @@
           max-height="60vh"
       >
         <template v-slot:default="{ item }">
-          <v-card class="pa-4 item-list" variant="text" @click="onClickItem(item)">
+          <v-card class="pa-4 item-list" variant="plain" :ripple="false" @click="onClickItem(item)">
             <v-row no-gutters class="align-start">
               <!-- ЛЕВАЯ ЧАСТЬ -->
               <v-col cols="12" md="10" class="pr-md-4">
@@ -39,10 +44,8 @@
 </template>
 
 <script setup lang="ts">
-import {createDirectus, readItem, readItems, rest} from "@directus/sdk";
-
 const props = defineProps<{ modelValue: boolean }>()
-const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'open-video', id: string | number): void }>()
+const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'open-video', id: string | number): void ; (e:'back') : void}>()
 const projects = ref<any[] | null>(null)
 
 async function getProjects() {
@@ -68,9 +71,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.v-virtual-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.v-virtual-scroll {
+  -ms-overflow-style: none;  /* IE и Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
 .item-list {
-  width: 35vw;
+  width: 40vw;
   cursor: pointer;
+}
+
+@media (max-width: 1920px) {
+  .item-list {
+    width: 53.3vw;
+  }
+}
+
+@media (max-width: 1600px) {
+  .item-list {
+    width: 60vw;
+  }
+}
+
+@media (max-width: 1300px) {
+  .item-list {
+    width: 70vw;
+  }
 }
 
 .title-box {
@@ -79,24 +109,28 @@ onMounted(() => {
   font-family: Georgia, serif; /* как в примере */
   font-size: clamp(24px, 4vw, 50px);
   letter-spacing: 0.2em;
-  line-height: 1.1;
+  line-height: 0.7;
   color: rgba(0, 0, 0, .85);
   transform: scaleY(1.4);
 }
 
 .menu-card {
-  background-color: #EEEEEE;
-  opacity: 0.5;
+  background-color: rgba(238, 238, 238, 0.5);
   position: relative;
 }
 
 .dialog-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 3;
+  top:36px;
+  right:36px;
 }
 
+.back-btn{
+  position: absolute;
+  top: 36px;
+  left: 36px;
+  z-index: 2;
+}
 .date {
   margin-bottom: 20px;
 }

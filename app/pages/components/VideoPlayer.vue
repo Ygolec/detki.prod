@@ -6,18 +6,21 @@
   >
     <v-card variant="text" class="menu-card d-flex align-center justify-center">
       <!-- Player container -->
-      <div class="player-wrap" ref="wrapEl" style="height: 80vh;width: 80vw;">
+      <div class="player-wrap" ref="wrapEl" style="height: 100vh;width: 100vw;">
         <video
             ref="videoEl"
             class="video-js vjs-default-skin"
             playsinline
+            autoplay
             preload="auto"
         ></video>
 
         <!-- Overlay root that will be moved inside player.el() -->
         <div ref="overlayRoot">
           <!-- Close button (top-right) -->
-          <v-btn class="close-btn" icon="mdi-close" variant="text" @click="close"></v-btn>
+          <v-btn class="close-btn" variant="plain" :ripple="false" @click="close">
+            <img src="/icons/close.svg"/>
+          </v-btn>
 
           <!-- Overlay: PAUSED state -->
           <div v-show="isPaused" class="overlay paused">
@@ -62,6 +65,7 @@
 import {onMounted, onBeforeUnmount, ref, watch, reactive, nextTick} from 'vue'
 import {useHead, useRuntimeConfig} from '#imports'
 
+let muteObserver: MutationObserver | null = null;
 const props = defineProps<{
   modelValue: boolean
   projectId?: string | number
@@ -79,7 +83,63 @@ const isPaused = ref(true)
 const meta = reactive<{ title: string; src: string; year?: number | string; tools?: string }>(
     {title: '', src: '', year: undefined, tools: undefined}
 )
+function setupCustomMuteIcon() {
+  // 1) Один раз добавляем CSS-правило, которое отключает псевдоэлемент ::before
+  if (!document.getElementById('vjsMuteIconOverride')) {
+    const style = document.createElement('style');
+    style.id = 'vjsMuteIconOverride';
+    style.textContent = `
+      .player-wrap .vjs-mute-control .vjs-icon-placeholder::before,
+      .player-wrap .vjs-volume-panel-button .vjs-icon-placeholder::before {
+        content: "" !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
+  const root = player.el() as HTMLElement;
+
+  const findIconEl = (): HTMLElement | null => {
+    // покрываем оба варианта разметки
+    return (
+        root.querySelector('.vjs-volume-panel .vjs-volume-panel-button .vjs-icon-placeholder') as HTMLElement ||
+        root.querySelector('.vjs-mute-control .vjs-icon-placeholder') as HTMLElement
+    );
+  };
+
+  const applyBaseStyles = (el: HTMLElement) => {
+    el.style.width = '30px';
+    el.style.height = '30px';
+    el.style.display = 'block';
+    el.style.backgroundRepeat = 'no-repeat';
+    el.style.backgroundPosition = 'center';
+    el.style.backgroundSize = '30px';
+  };
+
+  const updateIcon = () => {
+    const el = findIconEl();
+    if (!el) return;
+    applyBaseStyles(el);
+    const muted = player.muted() || player.volume() === 0;
+    el.style.backgroundImage = `url(${muted ? '/icons/mute.svg' : '/icons/volume.svg'})`;
+  };
+
+  // 2) Обновляем при любых изменениях громкости/мьюта и при готовности
+  player.on('volumechange', updateIcon);
+  player.on('loadedmetadata', updateIcon);
+  player.on('ready', updateIcon);
+
+  // 3) На случай перестройки control-bar — следим мутацией DOM
+  const bar = root.querySelector('.vjs-control-bar');
+  if (bar) {
+    muteObserver?.disconnect();
+    muteObserver = new MutationObserver(() => updateIcon());
+    muteObserver.observe(bar, { subtree: true, childList: true, attributes: true });
+  }
+
+  // Первичный вызов
+  updateIcon();
+}
 // --- Autosize paused title to fill the frame ---
 function fitTitleToFrame() {
   if (!isPaused.value) return
@@ -198,7 +258,19 @@ async function ensurePlayer() {
     preload: 'auto',
     fluid: true,
     controlBar: {
-      remainingTimeDisplay: false
+      remainingTimeDisplay: false,
+      pictureInPictureToggle: false,
+      fullscreenToggle: false,
+    }
+  })
+
+  player.ready(() => {
+    if (props.modelValue) {
+      setupCustomMuteIcon();
+      // Небольшая задержка для корректной инициализации
+      setTimeout(() => {
+        player.requestFullscreen().catch(console.error)
+      }, 100)
     }
   })
 
@@ -337,6 +409,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
 .video-card {
   position: fixed;
   inset: 0;
@@ -399,7 +472,6 @@ onBeforeUnmount(() => {
   font-family: Georgia, serif;
   display: inline-block;
   white-space: nowrap;
-  line-height: 1.1;
   letter-spacing: 0.2em;
   transform: scaleY(1.4);
   transform-origin: center center;
@@ -422,6 +494,7 @@ onBeforeUnmount(() => {
 .meta-row {
   display: contents; /* let children participate directly in CSS grid */
   white-space: nowrap;
+  font-family: none;
 }
 
 .meta-label {
@@ -453,13 +526,13 @@ onBeforeUnmount(() => {
 }
 
 .playing-left {
-  font-family: Georgia, serif;
   border: 1.5px solid white;
   font-size: clamp(14px, 2.2vw, 28px);
   letter-spacing: 0.2em;
   line-height: 1.1;
   transform: scaleY(1.4);
   max-width: 50vw;
+  margin-bottom: 1em;
 }
 
 .playing-right {
@@ -468,16 +541,63 @@ onBeforeUnmount(() => {
   justify-content: end; /* pack grid to the right */
   column-gap: 0.6em;
   row-gap: 0.3em; /* equal spacing */
-  font-family: Georgia, serif;
   font-size: clamp(14px, 2.2vw, 20px);
+  margin-bottom: 1em;
 }
 
 
 .close-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 36px;
+  right: 36px;
   z-index: 2;
   pointer-events: auto;
 }
+
+.player-wrap :deep(.vjs-control-bar) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  margin-bottom: 20px;
+}
+
+/* Убираем фон для всех состояний плеера */
+.player-wrap :deep(.video-js.vjs-has-started .vjs-control-bar),
+.player-wrap :deep(.video-js.vjs-paused .vjs-control-bar),
+.player-wrap :deep(.video-js.vjs-playing .vjs-control-bar) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+
+/* Базовый размер "плей-круга" в контрол-баре */
+.player-wrap :deep(.vjs-play-control .vjs-icon-placeholder) {
+  width: 20px;
+  height: 20px;
+}
+
+/* Глушим встроенный глиф и рисуем свой SVG */
+.player-wrap :deep(.vjs-play-control .vjs-icon-placeholder::before) {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+/* Когда видео на паузе — показываем иконку PLAY */
+.player-wrap :deep(.vjs-paused .vjs-play-control .vjs-icon-placeholder::before),
+.player-wrap :deep(.vjs-ended  .vjs-play-control .vjs-icon-placeholder::before) {
+  background-image: url("/icons/play.svg");
+  background-size: 16px;
+}
+
+/* Когда видео играет — показываем иконку PAUSE */
+.player-wrap :deep(.vjs-playing .vjs-play-control .vjs-icon-placeholder::before) {
+  background-image: url("/icons/pause.svg");
+}
+
+
 </style>

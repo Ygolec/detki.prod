@@ -5,7 +5,7 @@
     <img v-if="!menu && !projects && !video" src="/labels/detkiWhite.svg" alt="detki" class="centered-image" />
     <MenuIcon v-if="!menu && !projects && !video"/>
     <MenuDialog v-model="menu" @open-projects="onOpenProjects"/>
-    <ProjectsDialog v-model="projects" @open-video="onOpenVideo"/>
+    <ProjectsDialog v-model="projects" @open-video="onOpenVideo" @back="backFromProject"/>
     <VideoPlayer v-model="video" :project-id="selectedId"/>
   </div>
 </template>
@@ -26,6 +26,11 @@ const selectedId = ref<string | number | undefined>(undefined)
 function onOpenProjects() {
   projects.value = true
   menu.value = false
+}
+
+function backFromProject() {
+  projects.value = false
+  menu.value = true
 }
 
 function onOpenVideo(id: string | number) {
