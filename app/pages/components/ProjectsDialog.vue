@@ -15,11 +15,11 @@
 
       <img src="/labels/detkiBlack.svg" alt="logo" class="dialog-logo"/>
       <img src="/labels/allProjects.svg" alt="logo" class="center-image"/>
-      <v-virtual-scroll
-          v-if="projects"
-          :items="projects"
-          max-height="60vh"
-      >
+  <v-virtual-scroll
+      v-if="projects"
+      :items="projects"
+      max-height="60vh"
+  >
         <template v-slot:default="{ item }">
           <v-card class="pa-4 item-list" variant="plain" :ripple="false" @click="onClickItem(item)">
             <v-row no-gutters class="align-start">
@@ -44,13 +44,26 @@
 </template>
 
 <script setup lang="ts">
+import {projects as staticProjects} from '~/data/projects'
+import {onMounted} from 'vue'
+import {useRuntimeConfig} from '#imports'
 const props = defineProps<{ modelValue: boolean }>()
-const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'open-video', id: string | number): void ; (e:'back') : void}>()
+const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'open-video', project: any): void ; (e:'back') : void}>()
 const projects = ref<any[] | null>(null)
+const loading = ref(true)
 
-async function getProjects() {
-  const origin = process.client ? window.location.origin : useRequestURL().origin
-  projects.value = await $fetch(`${origin}/api/projects/list`)
+async function loadProjects() {
+  const {public: {projectsUrl}} = useRuntimeConfig()
+  try {
+    const data: any = await $fetch(projectsUrl)
+    if (Array.isArray(data) && data.length) {
+      projects.value = data
+      return
+    }
+  } catch (e) {
+    // fallback below
+  }
+  projects.value = staticProjects
 }
 
 function onUpdate(val: boolean) {
@@ -59,14 +72,12 @@ function onUpdate(val: boolean) {
 
 function onClickItem(item: any) {
   if (!item) return
-  const id = item.id
-  if (id !== undefined && id !== null) {
-    emit('open-video', id)
-  }
+  emit('open-video', item)
 }
 
-onMounted(() => {
-  getProjects();
+onMounted(async () => {
+  await loadProjects()
+  loading.value = false
 })
 </script>
 

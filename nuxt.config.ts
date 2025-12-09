@@ -1,14 +1,13 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { defineNuxtConfig } from 'nuxt/config'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   runtimeConfig: {
-    directusUrl: process.env.DIRECTUS_INTERNAL_URL || process.env.DIRECTUS_PUBLIC_URL || process.env.NUXT_DIRECTUS_URL || 'http://directus:8055',
-    directusToken: process.env.DIRECTUS_STATIC_TOKEN || process.env.NUXT_DIRECTUS_TOKEN || '',
     public: {
-      directusUrl: process.env.DIRECTUS_PUBLIC_URL || process.env.NUXT_PUBLIC_DIRECTUS_URL || 'http://localhost:8055',
-      directusToken: process.env.NUXT_PUBLIC_DIRECTUS_TOKEN || '',
+      mainVideoUrl: process.env.NUXT_PUBLIC_MAIN_VIDEO_URL || 'http://localhost:5000/api/files/downloadmain',
+      projectsUrl: process.env.NUXT_PUBLIC_PROJECTS_URL || 'http://localhost:5000/api/project/getprojects',
     },
   },
   build: {
@@ -17,7 +16,7 @@ export default defineNuxtConfig({
   modules: [
     (_options, nuxt) => {
       nuxt.hooks.hook('vite:extendConfig', (config) => {
-        // @ts-expect-error
+        if (!config.plugins) config.plugins = []
         config.plugins.push(vuetify({ autoImport: true }))
       })
     },

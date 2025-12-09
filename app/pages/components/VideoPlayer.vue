@@ -66,9 +66,11 @@ import {onMounted, onBeforeUnmount, ref, watch, reactive, nextTick} from 'vue'
 import {useHead, useRuntimeConfig} from '#imports'
 
 let muteObserver: MutationObserver | null = null;
+import {getProjectById, projects} from '~/data/projects'
 const props = defineProps<{
   modelValue: boolean
   projectId?: string | number
+  project?: any
 }>()
 const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void }>()
 
@@ -334,46 +336,40 @@ function guessType(src: string): string {
   return 'video/mp4'
 }
 
-async function fetchProjectById(id?: string | number) {
-  // Default fallback content
+async function fetchProjectById(id?: string | number, provided?: any) {
   const fallback = {
-    title: 'gilmurt',
-    src: '/gilmurt_cut_for_web.mp4',
-    year: '2025',
-    tools: 'Blender, Nuke, Houdini'
+    title: projects[0]?.name || 'gilmurt',
+    src: projects[0]?.videoUrl || '/gilmurt_cut_for_web.mp4',
+    year: projects[0]?.year || '2025',
+    tools: projects[0]?.tools || 'Blender, Nuke, Houdini'
   }
 
-  if (!id) {
-    Object.assign(meta, fallback)
-    loadSource(meta.src)
-    return
-  }
-
-  const config = useRuntimeConfig();
+  const config = useRuntimeConfig()
+  let item = provided || (id ? getProjectById(id) : null)
 
   try {
-    const origin = process.client ? window.location.origin : useRequestURL().origin
-    const url = `${origin}/api/projects/${id}`
-    const data: any = await $fetch(url)
-    const item = data?.data || data
-
-    const title = item?.name || item?.title || fallback.title
-    const yearFromDate = item?.date ? String(item.date).slice(0, 4) : undefined
-    const year = yearFromDate || (item?.year ?? fallback.year)
-    const tools = Array.isArray(item?.tools) ? item.tools.join(', ') : (item?.tools || fallback.tools)
-    const srcFromVideo = item?.video ? `${config.public.directusUrl}/assets/${item.video}` : undefined
-    const src = srcFromVideo || item?.video_url || fallback.src
-
-    Object.assign(meta, { title, src, year, tools })
+    const list: any = await $fetch(config.public.projectsUrl)
+    if (Array.isArray(list) && list.length) {
+      const targetId = provided?.id ?? id
+      item = (targetId ? list.find((i: any) => String(i.id) === String(targetId)) : null) || item || list[0]
+    }
   } catch (e) {
-    Object.assign(meta, fallback)
+    // fallback to static item
   }
+
+  const title = item?.name || item?.title || fallback.title
+  const yearFromDate = item?.date ? String(item.date).slice(0, 4) : undefined
+  const year = yearFromDate || (item?.year ?? fallback.year)
+  const tools = Array.isArray(item?.tools) ? item.tools.join(', ') : (item?.tools || fallback.tools)
+  const src = item?.videoUrl || fallback.src
+
+  Object.assign(meta, { title, src, year, tools })
   loadSource(meta.src)
 }
 
 watch(() => props.modelValue, async (open) => {
   if (open) {
-    await fetchProjectById(props.projectId)
+    await fetchProjectById(props.projectId, props.project)
     await ensurePlayer()
   } else {
     disposePlayer()
@@ -382,7 +378,14 @@ watch(() => props.modelValue, async (open) => {
 
 watch(() => props.projectId, async (id) => {
   if (props.modelValue) {
-    await fetchProjectById(id)
+    await fetchProjectById(id, props.project)
+    if (player && meta.src) loadSource(meta.src)
+  }
+})
+
+watch(() => props.project, async (project) => {
+  if (props.modelValue) {
+    await fetchProjectById(project?.id, project)
     if (player && meta.src) loadSource(meta.src)
   }
 })
@@ -420,12 +423,20 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
 }
 
 .player-wrap :deep(.video-js) {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.player-wrap :deep(video),
+.player-wrap :deep(.vjs-tech) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
 }
 
 /* Hide default big play */

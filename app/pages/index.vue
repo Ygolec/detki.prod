@@ -6,7 +6,7 @@
     <MenuIcon v-if="!menu && !projects && !video"/>
     <MenuDialog v-model="menu" @open-projects="onOpenProjects"/>
     <ProjectsDialog v-model="projects" @open-video="onOpenVideo" @back="backFromProject"/>
-    <VideoPlayer v-model="video" :project-id="selectedId"/>
+    <VideoPlayer v-model="video" :project-id="selectedId" :project="selectedProject"/>
   </div>
 </template>
 
@@ -22,6 +22,7 @@ const menu = ref(false);
 const projects = ref(false);
 const video = ref(false);
 const selectedId = ref<string | number | undefined>(undefined)
+const selectedProject = ref<any | null>(null)
 
 function onOpenProjects() {
   projects.value = true
@@ -33,8 +34,9 @@ function backFromProject() {
   menu.value = true
 }
 
-function onOpenVideo(id: string | number) {
-  selectedId.value = id
+function onOpenVideo(project: any) {
+  selectedId.value = project?.id
+  selectedProject.value = project || null
   video.value = true
   // Keep projects open so closing the video returns to AllProjects automatically
 }

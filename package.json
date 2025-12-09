@@ -10,7 +10,6 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@directus/sdk": "^20.0.3",
     "@mdi/font": "^7.4.47",
     "nuxt": "^4.0.3",
     "videojs": "^1.0.0",
