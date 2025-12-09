@@ -1,27 +1,37 @@
-FROM node:20-alpine AS base
+# ---------------------------------------------------------
+# 1) Базовый образ: Node + Corepack (для pnpm)
+# ---------------------------------------------------------
+FROM node:20 AS base
 WORKDIR /app
+RUN corepack enable
 
-# Устанавливаем зависимости отдельно — кешируем node_modules
+
+# ---------------------------------------------------------
+# 2) Установка зависимостей
+# ---------------------------------------------------------
 FROM base AS deps
-COPY package*.json ./
-RUN npm ci --ignore-scripts
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
-# Сборка проекта
+
+# ---------------------------------------------------------
+# 3) Сборка проекта
+# ---------------------------------------------------------
 FROM deps AS build
 COPY . .
-RUN npm run build
+RUN pnpm build
 
-# Прод-образ
-FROM node:20-alpine AS runner
+
+# ---------------------------------------------------------
+# 4) Production runtime
+# ---------------------------------------------------------
+FROM node:20 AS runner
 WORKDIR /app
-ENV NODE_ENV=production
 
-# Копируем только необходимое для запуска
+ENV NODE_ENV=production
+ENV NITRO_PRESET=node
+
 COPY --from=build /app/.output ./.output
-COPY --from=deps /app/node_modules ./node_modules
-COPY package*.json ./
 
 EXPOSE 3000
-
 CMD ["node", ".output/server/index.mjs"]
-
